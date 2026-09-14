@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: depscan
+Version: 0.1.0
+Summary: Multi-ecosystem dependency scanner with typosquat detection
+Author-email: Yunaremaia <yunare@gmail.com>
+License: MIT
+Keywords: security,dependencies,typosquat,scanner,sbom
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: click>=8.1
+Requires-Dist: rich>=13.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
