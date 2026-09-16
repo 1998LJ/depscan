@@ -139,15 +139,10 @@ def test_cli_format_sarif_stdout_pure(tmp_path):
 
 def test_sarif_official_json_schema_validation_empty(tmp_path):
     """Test 1 for Issue #3 acceptance criteria: validate empty scan SARIF output against OASIS JSON Schema."""
+    import jsonschema
     from pathlib import Path
     schema_path = Path(__file__).parent / "schemas" / "sarif-schema-2.1.0.json"
-    if not schema_path.exists():
-        pytest.skip("Local SARIF schema file not found")
-
-    try:
-        import jsonschema
-    except ImportError:
-        pytest.skip("jsonschema library not installed")
+    assert schema_path.exists(), "Local OASIS SARIF schema file missing"
 
     with open(schema_path) as f:
         schema = json.load(f)
@@ -160,15 +155,10 @@ def test_sarif_official_json_schema_validation_empty(tmp_path):
 
 def test_sarif_official_json_schema_validation_with_findings(tmp_path):
     """Test 2 for Issue #3 acceptance criteria: validate SARIF output with findings against OASIS JSON Schema."""
+    import jsonschema
     from pathlib import Path
     schema_path = Path(__file__).parent / "schemas" / "sarif-schema-2.1.0.json"
-    if not schema_path.exists():
-        pytest.skip("Local SARIF schema file not found")
-
-    try:
-        import jsonschema
-    except ImportError:
-        pytest.skip("jsonschema library not installed")
+    assert schema_path.exists(), "Local OASIS SARIF schema file missing"
 
     with open(schema_path) as f:
         schema = json.load(f)
@@ -191,7 +181,7 @@ def test_sarif_official_json_schema_validation_with_findings(tmp_path):
         name="requests",
         version="2.30.0",
         ecosystem="pypi",
-        source_file="setup.py",
+        source_file="requirements.txt",
         known_vulnerabilities=[vuln],
     )
     results = {
@@ -201,5 +191,41 @@ def test_sarif_official_json_schema_validation_with_findings(tmp_path):
         "vulnerable": [vuln_dep],
     }
     sarif_doc = to_sarif(results, version="0.1.0")
-    # Strict OASIS 2.1.0 JSON Schema validation (raises ValidationError if invalid)
+    # Strict OASIS 2.1.0 JSON Schema validation
     jsonschema.validate(instance=sarif_doc, schema=schema)
+
+
+def test_sarif_typosquat_severity_regression():
+    """Explicit regression test: Levenshtein dist 1 -> high -> error, dist 2 -> medium -> warning."""
+    # Distance 1: request -> requests (dist 1 -> high -> error)
+    dep_dist1 = Dependency(
+        name="request",
+        version="1.0.0",
+        ecosystem="pypi",
+        is_typosquat=True,
+        typosquat_target="requests",
+        typosquat_severity="high",
+    )
+    # Distance 2: reqeustz -> requests (dist 2 -> medium -> warning)
+    dep_dist2 = Dependency(
+        name="reqeustz",
+        version="1.0.0",
+        ecosystem="pypi",
+        is_typosquat=True,
+        typosquat_target="requests",
+        typosquat_severity="medium",
+    )
+    sarif = to_sarif({
+        "total": 2,
+        "dependencies": [dep_dist1, dep_dist2],
+        "typosquats": [dep_dist1, dep_dist2],
+        "vulnerable": [],
+    })
+    results = sarif["runs"][0]["results"]
+    assert len(results) == 2
+    # Levenshtein distance 1 -> high -> SARIF error
+    assert results[0]["ruleId"] == "depscan-typosquat"
+    assert results[0]["level"] == "error"
+    # Levenshtein distance 2 -> medium -> SARIF warning
+    assert results[1]["ruleId"] == "depscan-typosquat"
+    assert results[1]["level"] == "warning"
