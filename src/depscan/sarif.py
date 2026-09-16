@@ -8,6 +8,16 @@ from __future__ import annotations
 SARIF_SCHEMA = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
 
 
+SEVERITY_TO_LEVEL = {
+    "critical": "error",
+    "high": "error",
+    "medium": "warning",
+    "moderate": "warning",
+    "low": "note",
+    "info": "note",
+}
+
+
 def to_sarif(results: dict, version: str = "0.1.0") -> dict:
     """Convert depscan scan results to a SARIF 2.1.0 compliant dictionary."""
     rules = []
@@ -58,6 +68,9 @@ def to_sarif(results: dict, version: str = "0.1.0") -> dict:
     for dep in vulnerable:
         for vuln in getattr(dep, "known_vulnerabilities", []):
             vuln_id = getattr(vuln, "id", "depscan-vulnerability")
+            vuln_severity = getattr(vuln, "severity", "medium").lower()
+            level = SEVERITY_TO_LEVEL.get(vuln_severity, "warning")
+
             if "depscan-vulnerability" not in rule_ids:
                 rule_ids.add("depscan-vulnerability")
                 rules.append({
@@ -67,7 +80,7 @@ def to_sarif(results: dict, version: str = "0.1.0") -> dict:
                         "text": "Known vulnerability in dependency"
                     },
                     "defaultConfiguration": {
-                        "level": "error"
+                        "level": "warning"
                     },
                     "properties": {
                         "tags": ["security", "vulnerability"]
@@ -76,7 +89,7 @@ def to_sarif(results: dict, version: str = "0.1.0") -> dict:
 
             sarif_results.append({
                 "ruleId": "depscan-vulnerability",
-                "level": "error",
+                "level": level,
                 "message": {
                     "text": f"{dep.name}@{dep.version}: {vuln_id} - {getattr(vuln, 'description', '')}"
                 },

@@ -64,11 +64,64 @@ def test_to_sarif_with_typosquat_and_vulnerability():
     assert r1["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "setup.py"
 
 
+def test_to_sarif_severity_mapping():
+    results = {
+        "total": 3,
+        "typosquats": [],
+        "vulnerable": [
+            Dependency(
+                name="pkg-crit",
+                version="1.0.0",
+                ecosystem="pypi",
+                known_vulnerabilities=[
+                    Vulnerability(
+                        id="CVE-2024-0001",
+                        severity="critical",
+                        description="Remote code execution",
+                    )
+                ],
+            ),
+            Dependency(
+                name="pkg-med",
+                version="2.0.0",
+                ecosystem="npm",
+                known_vulnerabilities=[
+                    Vulnerability(
+                        id="CVE-2024-0002",
+                        severity="medium",
+                        description="Information disclosure",
+                    )
+                ],
+            ),
+            Dependency(
+                name="pkg-low",
+                version="3.0.0",
+                ecosystem="cargo",
+                known_vulnerabilities=[
+                    Vulnerability(
+                        id="CVE-2024-0003",
+                        severity="low",
+                        description="Minor bypass",
+                    )
+                ],
+            ),
+        ],
+    }
+    sarif = to_sarif(results, version="0.1.0")
+    run = sarif["runs"][0]
+    results_map = {r["message"]["text"].split(":")[0]: r["level"] for r in run["results"]}
+    assert results_map["pkg-crit@1.0.0"] == "error"
+    assert results_map["pkg-med@2.0.0"] == "warning"
+    assert results_map["pkg-low@3.0.0"] == "note"
+
+
 def test_cli_format_sarif_stdout_pure(tmp_path):
     import subprocess
+    import sys
     cmd = [
-        "/Users/liuwenjian/.hermes/hermes-agent/venv/bin/python",
-        "src/depscan/cli.py",
+        sys.executable,
+        "-m",
+        "depscan.cli",
         "scan",
         str(tmp_path),
         "--format",
