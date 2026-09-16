@@ -1,5 +1,6 @@
 """Tests for depscan SARIF 2.1.0 output."""
 import json
+import pytest
 from depscan.sarif import to_sarif, SARIF_SCHEMA
 from depscan.scanner import Dependency, Vulnerability
 
@@ -134,3 +135,71 @@ def test_cli_format_sarif_stdout_pure(tmp_path):
     assert data["$schema"] == SARIF_SCHEMA
     assert data["version"] == "2.1.0"
     assert data["runs"][0]["tool"]["driver"]["name"] == "depscan"
+
+
+def test_sarif_official_json_schema_validation_empty(tmp_path):
+    """Test 1 for Issue #3 acceptance criteria: validate empty scan SARIF output against OASIS JSON Schema."""
+    from pathlib import Path
+    schema_path = Path(__file__).parent / "schemas" / "sarif-schema-2.1.0.json"
+    if not schema_path.exists():
+        pytest.skip("Local SARIF schema file not found")
+
+    try:
+        import jsonschema
+    except ImportError:
+        pytest.skip("jsonschema library not installed")
+
+    with open(schema_path) as f:
+        schema = json.load(f)
+
+    results = {"total": 0, "dependencies": [], "typosquats": [], "vulnerable": []}
+    sarif_doc = to_sarif(results, version="0.1.0")
+    # Strict OASIS 2.1.0 JSON Schema validation (raises ValidationError if invalid)
+    jsonschema.validate(instance=sarif_doc, schema=schema)
+
+
+def test_sarif_official_json_schema_validation_with_findings(tmp_path):
+    """Test 2 for Issue #3 acceptance criteria: validate SARIF output with findings against OASIS JSON Schema."""
+    from pathlib import Path
+    schema_path = Path(__file__).parent / "schemas" / "sarif-schema-2.1.0.json"
+    if not schema_path.exists():
+        pytest.skip("Local SARIF schema file not found")
+
+    try:
+        import jsonschema
+    except ImportError:
+        pytest.skip("jsonschema library not installed")
+
+    with open(schema_path) as f:
+        schema = json.load(f)
+
+    typo_dep = Dependency(
+        name="reqeusts",
+        version="2.31.0",
+        ecosystem="pypi",
+        source_file="requirements.txt",
+        is_typosquat=True,
+        typosquat_target="requests",
+        typosquat_severity="high",
+    )
+    vuln = Vulnerability(
+        id="CVE-2023-32681",
+        description="Unintended leak of Proxy-Authorization header in requests",
+        severity="medium",
+    )
+    vuln_dep = Dependency(
+        name="requests",
+        version="2.30.0",
+        ecosystem="pypi",
+        source_file="setup.py",
+        known_vulnerabilities=[vuln],
+    )
+    results = {
+        "total": 2,
+        "dependencies": [typo_dep, vuln_dep],
+        "typosquats": [typo_dep],
+        "vulnerable": [vuln_dep],
+    }
+    sarif_doc = to_sarif(results, version="0.1.0")
+    # Strict OASIS 2.1.0 JSON Schema validation (raises ValidationError if invalid)
+    jsonschema.validate(instance=sarif_doc, schema=schema)

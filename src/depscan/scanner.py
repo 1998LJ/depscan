@@ -33,6 +33,7 @@ class Dependency:
     known_vulnerabilities: list[Vulnerability] = field(default_factory=list)
     is_typosquat: bool = False
     typosquat_target: str = ""
+    typosquat_severity: str = ""  # "critical", "high", "medium"
 
     @property
     def is_vulnerable(self) -> bool:
@@ -252,9 +253,12 @@ class MultiScanner:
             if name_lower == target:
                 return False  # Known good package
             # Simple similarity check
-            if self._levenshtein(name_lower, target) <= 2:
+            dist = self._levenshtein(name_lower, target)
+            if dist <= 2:
                 dep.is_typosquat = True
                 dep.typosquat_target = target
+                # Distance 1 or very short diff is HIGH/CRITICAL, distance 2 is MEDIUM
+                dep.typosquat_severity = "high" if dist == 1 else "medium"
                 return True
         return False
 

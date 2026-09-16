@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feat/sarif-format ]
   pull_request:
     branches: [ main ]
 
@@ -24,8 +24,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install jsonschema pytest click rich
         pip install -e .
-        pip install pytest
 
     - name: Run tests
       run: |

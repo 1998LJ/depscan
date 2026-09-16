@@ -46,9 +46,12 @@ def to_sarif(results: dict, version: str = "0.1.0") -> dict:
         })
 
     for dep in typosquats:
+        # Issue #3: Typosquat detected (CRITICAL/HIGH) -> error, Potential (MEDIUM) -> warning
+        typo_sev = getattr(dep, "typosquat_severity", "high").lower()
+        level = "error" if typo_sev in ("critical", "high") else "warning"
         sarif_results.append({
             "ruleId": "depscan-typosquat",
-            "level": "warning",
+            "level": level,
             "message": {
                 "text": f"Dependency '{dep.name}' (v{dep.version}) in {dep.ecosystem} appears to be a typosquat of popular package '{dep.typosquat_target}'."
             },
