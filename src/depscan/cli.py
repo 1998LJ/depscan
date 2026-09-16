@@ -82,7 +82,7 @@ def scan(path, output_format, json_out, sarif_out, typosquat):
     console.print(Panel(
         f"[bold]Scan Results[/bold]\n"
         f"Total dependencies: [cyan]{results['total']}[/cyan] | "
-        f"Typosquats: [red]{len(results['typosquats'])}[/cyan]",
+        f"Typosquats: [red]{len(results['typosquats'])}[/red]",
         title=f"depscan — {path}"
     ))
 
